@@ -1,0 +1,232 @@
+<!-- your_template.html -->
+
+{% extends 'base.html' %}
+
+{% block main %}
+
+<div class="container">
+    <div class="row">
+        <div class="col-12 col-md-6">
+            <div class="alert alert-info">
+
+                <h3>Register New User:</h3>
+            </div>
+            <form id="userForm">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="cardIdInput">Card Number</label>
+                    <input type="text" name="card_id" id="cardIdInput" class="form-control"
+                        placeholder="Swap card first, then focus on this field" onfocus="getLatestRFIDCard()">
+                    <small id="cardError" class="text-danger"></small>
+                </div>
+                <div class="form-group">
+                    <label for="userName">Name</label>
+                    <input type="text" name="name" id="userName" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="userEmail">Email</label>
+                    <input type="email" name="email" id="userEmail" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="userDepartment">Department</label>
+                    <input type="text" name="department" id="userDepartment" class="form-control">
+                </div>
+                
+                <div class="form-group">
+                    <label for="userContact">Contact</label>
+                    <input type="text" name="contact" id="userContact" class="form-control">
+                </div>
+                <button type="button" onclick="addUser()" class="btn btn-primary mt-2 w-100">Add User</button>
+            </form>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="alert alert-info">
+
+                <h3>Search Card User:</h3>
+            </div>
+            <div class="form">
+                <div class="form-group">
+                    <label for="cardIdInput">Card Number</label>
+                    <input type="text" name="card_id" placeholder="Swap card first, then focus on this field"
+                        id="cardIdInput2" class="form-control" onfocus="getLatestRFIDCard()">
+                    <small id="cardError2" class="text-danger"></small>
+                </div>
+                <button type="button" onclick="getUserInfo()" class="btn btn-info mt-2">Show Card Details</button>
+                <div id="userInfoContainer" class="mt-3">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th scope="col">Name</th>
+                                <th scope="col">Email</th>
+                                <th scope="col">Department</th>
+                                <th scope="col">Contact</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userInfoBody"></tbody>
+                    </table>
+                    <small id="cardError2" class="text-danger"></small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="row">
+    <div class="col-12 col-md-10 mx-auto py-3 my-3">
+        <div class="alert alert-info">
+            <h3 class="text-center">Daily Userlog</h3>
+        </div>
+        <div class="card card-body p-3">
+            
+            <table class="table table-responsive table-bordered table-hover">
+                <thead>
+                    <tr>
+                        <th>Serial Number</th>
+                        <th>Name</th>
+                        <th>Card Number</th>
+                        <th>Date</th>
+                        <th>Entry Time</th>
+                        <th>Leave Time</th>
+                        <!-- <th>Stay Time (minutes)</th> -->
+                    </tr>
+                </thead>
+                <tbody id="dailyUserLogBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+
+
+</div>
+
+
+<!-- Include jQuery using CDN -->
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+
+<script>
+    function getLatestRFIDCard() {
+        $.ajax({
+            url: '/api/get_last_rfid_card/',
+            type: 'GET',
+            dataType: 'json',
+            success: function (response) {
+                // Update the input field with the retrieved card number
+                $('#cardIdInput').val(response.card_number);
+                $('#cardIdInput2').val(response.card_number);
+
+                // Clear any previous error message
+                $('#cardError').text('');
+                $('#cardError2').text('');
+            },
+            error: function (error) {
+                console.error('Error fetching latest RFID card:', error);
+            }
+        });
+    }
+
+    function addUser() {
+        // Get form data
+        var formData = $('#userForm').serialize();
+
+        // Send form data to Django server
+        $.ajax({
+            url: '/api/add_user/',
+            type: 'POST',
+            data: formData,
+            success: function (response) {
+                if (response.status === 'error') {
+                    // Display the error message
+                    $('#cardError').text(response.message);
+                } else {
+                    // Clear form fields after successful submission
+                    $('#cardIdInput').val('');
+                    $('#userName').val('');
+                    $('#userEmail').val('');
+                    $('#userDepartment').val('');
+                    $('#userContact').val('');
+                }
+
+                console.log(response);
+            },
+            error: function (error) {
+                console.error('Error adding user:', error);
+            }
+        });
+    }
+
+    function getUserInfo() {
+        // Get card number
+        var cardNumber = $('#cardIdInput2').val();
+
+        // Send request for user information
+        $.ajax({
+            url: '/api/get_user_info/',
+            type: 'GET',
+            data: { card_number: cardNumber },
+            dataType: 'json',
+            success: function (response) {
+                // Clear any previous error message
+                $('#cardError2').text('');
+
+                if (response.status === 'success') {
+                    // Display user information in a Bootstrap table
+                    var userInfoHtml = '<tr>' +
+                        '<td>' + response.user_info.name + '</td>' +
+                        '<td>' + response.user_info.email + '</td>' +
+                        '<td>' + response.user_info.department + '</td>' +
+                        '<td>' + response.user_info.contact + '</td>' +
+                        '</tr>';
+                    $('#userInfoBody').html(userInfoHtml);
+                } else {
+                    // Display error message
+                    $('#cardError2').text(response.message);
+                }
+            },
+            error: function (error) {
+                console.error('Error getting user info:', error);
+            }
+        });
+    }
+
+     
+
+        function getDailyUserLog() {
+                $.ajax({
+                    url: '/api/daily_user_log/',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function (response) {
+                        // Update the daily user log table with the retrieved data
+                        updateDailyUserLog(response.log_list);
+                    },
+                    error: function (error) {
+                        console.error('Error fetching daily user log:', error);
+                    }
+                });
+            }
+
+            function updateDailyUserLog(logList) {
+                // Clear previous entries
+                $('#dailyUserLogBody').empty();
+
+                // Append new entries
+                logList.forEach(function (entry, index) {
+                    var stayTime = entry.stay_time !== null ? entry.stay_time : 'N/A';
+                    var entryHtml = '<tr>' +
+                        '<td>' + (index + 1) + '</td>' +
+                        '<td>' + entry.user + '</td>' +
+                        '<td>' + entry.card_id + '</td>' +
+                        '<td>' + entry.date + '</td>' +
+                        '<td>' + entry.entry_time + '</td>' +
+                        '<td>' + entry.leave_time + '</td>' +
+                        // '<td>' + entry.stay_time + '</td>' +
+                        '</tr>';
+                    $('#dailyUserLogBody').append(entryHtml);
+                });
+            }
+
+            // Refresh the daily user log every second
+            setInterval(getDailyUserLog,3000);
+</script>
+
+{% endblock %}
